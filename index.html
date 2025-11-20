@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Analisis Kelapa Sawit 🌴</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.css">
+    <script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.3/js/jquery.dataTables.js"></script>
+    
+    <style>
+        /* Palet Warna Hijau Terinspirasi Kelapa Sawit */
+        :root {
+            --color-primary: #008000; /* Hijau Tua/Kelapa Sawit */
+            --color-secondary: #38761d; /* Hijau Sedang */
+            --color-accent: #93c47d; /* Hijau Muda/Aksen */
+            --color-text: #333;
+            --color-background: #f4f7f6;
+            --color-card-bg: #fff;
+            --color-border: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--color-background);
+            color: var(--color-text);
+        }
+
+        .header {
+            background-color: var(--color-primary);
+            color: white;
+            padding: 20px 40px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.8em;
+        }
+
+        .container {
+            padding: 20px 40px;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: var(--color-card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-left: 5px solid var(--color-secondary);
+        }
+
+        .card h3 {
+            color: var(--color-secondary);
+            margin-top: 0;
+            font-size: 1.2em;
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card h3 i {
+            margin-right: 10px;
+            color: var(--color-primary);
+        }
+
+        .chart-container {
+            height: 400px;
+        }
+
+        .data-table-section {
+            background-color: var(--color-card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .filter-controls label, .filter-controls select {
+            font-size: 0.95em;
+        }
+
+        .data-table-section h2 {
+            color: var(--color-primary);
+            margin-top: 0;
+            font-size: 1.5em;
+        }
+
+        table.dataTable thead th {
+            background-color: var(--color-secondary);
+            color: white;
+            border-bottom: none;
+        }
+
+        .dataTables_wrapper .dataTables_filter input {
+            border: 1px solid var(--color-border);
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        /* Tombol Unduh */
+        .download-btn {
+            background-color: var(--color-accent);
+            color: var(--color-primary);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .download-btn:hover {
+            background-color: var(--color-secondary);
+            color: white;
+        }
+        
+        /* Loading Spinner */
+        #loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.5em;
+            color: var(--color-primary);
+        }
+
+        /* Style untuk statistik ringkasan */
+        .summary-stat {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: var(--color-primary);
+        }
+
+        .summary-label {
+            font-size: 0.9em;
+            color: var(--color-text);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1><i class="fas fa-seedling"></i> Dasbor Analisis Kinerja Pabrik Kelapa Sawit</h1>
+        <button class="download-btn" onclick="exportFilteredData()"><i class="fas fa-download"></i> Unduh Data Tabel</button>
+    </div>
+
+    <div class="container">
+        
+        <div class="card-grid">
+            <div class="card">
+                <h3><i class="fas fa-oil-can"></i> Total Produksi (ton)</h3>
+                <div class="summary-stat" id="stat_produksi">...</div>
+                <div class="summary-label">Total Produksi selama periode ini</div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-dollar-sign"></i> Total Pendapatan (USD)</h3>
+                <div class="summary-stat" id="stat_pendapatan">...</div>
+                <div class="summary-label">Total Pendapatan dari Penjualan</div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-hand-holding-usd"></i> Total Biaya (USD)</h3>
+                <div class="summary-stat" id="stat_biaya">...</div>
+                <div class="summary-label">Jumlah Seluruh Biaya Operasional</div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-calculator"></i> Rata-rata Rendimen (ton/ha)</h3>
+                <div class="summary-stat" id="stat_rendimen">...</div>
+                <div class="summary-label">Rendimen Rata-rata per Hektar</div>
+            </div>
+        </div>
+        
+        <div class="card-grid">
+            <div class="card chart-container">
+                <h3><i class="fas fa-chart-bar"></i> Produksi dan Biaya Total Bulanan</h3>
+                <canvas id="barChart"></canvas>
+            </div>
+            <div class="card chart-container">
+                <h3><i class="fas fa-chart-line"></i> Tren Pendapatan per Bulan</h3>
+                <canvas id="lineChart"></canvas>
+            </div>
+        </div>
+        <div class="card-grid">
+            <div class="card chart-container" style="grid-column: span 1 / auto;">
+                <h3><i class="fas fa-chart-pie"></i> Proporsi Biaya Total (Dir/Indir/Cst)</h3>
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+
+        <div class="data-table-section">
+            <h2><i class="fas fa-table"></i> Data Detail Produksi per Lahan</h2>
+            
+            <div class="filter-controls">
+                <label for="filterBlok">Filter Blok:</label>
+                <select id="filterBlok">
+                    <option value="">Semua Blok</option>
+                </select>
+                
+                <label for="filterLote">Filter Lote:</label>
+                <select id="filterLote">
+                    <option value="">Semua Lote</option>
+                </select>
+            </div>
+
+            <table id="dataTable" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Blok</th>
+                        <th>Lote</th>
+                        <th>Área (ha)</th>
+                        <th>Fecha</th>
+                        <th>Rendimiento (ton/ha)</th>
+                        <th>Produksi (ton)</th>
+                        <th>Total directo (USD)</th>
+                        <th>Total indirecto (USD)</th>
+                        <th>Total cosecha (USD)</th>
+                        <th>Costo total (USD)</th>
+                        <th>Ingresos (USD)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+        
+    </div>
+    
+    <div id="loading">Memuat data CSV... <i class="fas fa-spinner fa-spin"></i></div>
+
+    <script>
+        // Data CSV mentah dari file yang diunggah
+        const CSV_FILE_PATH = "uploaded:Datos_Palma_Lotes_Bloques (1)(Datos) (1).csv";
+        let rawData = [];
+        let dataTable;
+
+        // Peta Warna untuk Grafik
+        const CHART_COLORS = {
+            primary: 'rgb(0, 128, 0)',
+            secondary: 'rgb(56, 118, 29)',
+            accent: 'rgb(147, 196, 125)',
+            red: 'rgb(255, 99, 132)',
+            blue: 'rgb(54, 162, 235)'
+        };
+
+        // Fungsi utama untuk memuat dan memproses data
+        async function loadAndProcessData() {
+            try {
+                // 1. Ambil data CSV
+                const response = await fetch(CSV_FILE_PATH);
+                const csvText = await response.text();
+
+                // 2. Parse data CSV
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: true,
+                    complete: function(results) {
+                        rawData = results.data.filter(row => row.Fecha); // Filter baris tanpa tanggal
+                        
+                        // Konversi kolom numerik ke float jika Papa Parse gagal
+                        rawData = rawData.map(row => {
+                            for (const key in row) {
+                                if (typeof row[key] === 'string' && !isNaN(parseFloat(row[key])) && isFinite(row[key])) {
+                                    row[key] = parseFloat(row[key]);
+                                }
+                            }
+                            return row;
+                        });
+
+                        document.getElementById('loading').style.display = 'none';
+
+                        initDashboard(rawData);
+                    },
+                    error: function(error) {
+                        console.error("Kesalahan parsing CSV:", error);
+                        document.getElementById('loading').innerHTML = `Gagal memuat data: ${error}`;
+                    }
+                });
+
+            } catch (error) {
+                console.error("Kesalahan mengambil file CSV:", error);
+                document.getElementById('loading').innerHTML = `Gagal mengambil file: ${error.message}`;
+            }
+        }
+
+        // Fungsi untuk menginisialisasi semua komponen dasbor
+        function initDashboard(data) {
+            updateSummaryStats(data);
+            setupFilters(data);
+            setupDataTable(data);
+            updateCharts(data);
+        }
+
+        // Fungsi untuk memperbarui statistik ringkasan
+        function updateSummaryStats(data) {
+            const totalProduksi = data.reduce((sum, row) => sum + (row['Producción (ton)'] || 0), 0);
+            const totalPendapatan = data.reduce((sum, row) => sum + (row['Ingresos (USD)'] || 0), 0);
+            const totalBiaya = data.reduce((sum, row) => sum + (row['Costo total (USD)'] || 0), 0);
+            // Hanya menghitung rata-rata rendimen dari baris di mana area > 0 untuk menghindari pembagian dengan nol
+            const validData = data.filter(row => row['Área (ha)'] > 0);
+            const avgRendimen = validData.reduce((sum, row) => sum + (row['Rendimiento (ton/ha)'] || 0), 0) / validData.length;
+
+            document.getElementById('stat_produksi').innerText = totalProduksi.toFixed(2);
+            document.getElementById('stat_pendapatan').innerText = `$${totalPendapatan.toFixed(2)}`;
+            document.getElementById('stat_biaya').innerText = `$${totalBiaya.toFixed(2)}`;
+            document.getElementById('stat_rendimen').innerText = isNaN(avgRendimen) ? '0.000' : avgRendimen.toFixed(3);
+        }
+
+        // Fungsi untuk menyiapkan dropdown filter
+        function setupFilters(data) {
+            // Urutkan dan ambil nilai unik, hilangkan nilai null/undefined/kosong
+            const getUniqueSortedValues = (key) => [...new Set(data.map(row => row[key]).filter(Boolean))].sort();
+
+            const blokSet = getUniqueSortedValues('Bloque');
+            const loteSet = getUniqueSortedValues('Lote');
+
+            const filterBlok = document.getElementById('filterBlok');
+            filterBlok.innerHTML = '<option value="">Semua Blok</option>';
+            blokSet.forEach(blok => {
+                filterBlok.innerHTML += `<option value="${blok}">${blok}</option>`;
+            });
+
+            const filterLote = document.getElementById('filterLote');
+            filterLote.innerHTML = '<option value="">Semua Lote</option>';
+            loteSet.forEach(lote => {
+                filterLote.innerHTML += `<option value="${lote}">${lote}</option>`;
+            });
+
+            // Tambahkan event listener untuk pembaruan filter
+            filterBlok.addEventListener('change', () => filterDataAndUpdate());
+            filterLote.addEventListener('change', () => filterDataAndUpdate());
+        }
+
+        // Fungsi untuk menyiapkan tabel data
+        function setupDataTable(data) {
+            // Bersihkan dataTables yang mungkin sudah ada
+            if ($.fn.DataTable.isDataTable('#dataTable')) {
+                $('#dataTable').DataTable().destroy();
+            }
+
+            // Persiapkan data untuk DataTables (hanya kolom yang relevan)
+            const tableData = data.map(row => [
+                row.Bloque,
+                row.Lote,
+                (row['Área (ha)'] || 0).toFixed(2),
+                (row.Fecha || '').substring(0, 10), // Hanya tampilkan tanggal
+                (row['Rendimiento (ton/ha)'] || 0).toFixed(3),
+                (row['Producción (ton)'] || 0).toFixed(2),
+                (row['Total directo (USD)'] || 0).toFixed(2),
+                (row['Total indirecto (USD)'] || 0).toFixed(2),
+                (row['Total cosecha (USD)'] || 0).toFixed(2),
+                (row['Costo total (USD)'] || 0).toFixed(2),
+                (row['Ingresos (USD)'] || 0).toFixed(2)
+            ]);
+            
+            // Inisialisasi DataTables
+            dataTable = $('#dataTable').DataTable({
+                data: tableData,
+                columns: [
+                    { title: "Blok" },
+                    { title: "Lote" },
+                    { title: "Área (ha)" },
+                    { title: "Fecha" },
+                    { title: "Rendimiento (ton/ha)" },
+                    { title: "Produksi (ton)" },
+                    { title: "Total directo (USD)" },
+                    { title: "Total indirecto (USD)" },
+                    { title: "Total cosecha (USD)" },
+                    { title: "Costo total (USD)" },
+                    { title: "Ingresos (USD)" }
+                ],
+                "pageLength": 10,
+                "responsive": true,
+                "ordering": true,
+                "order": [[3, "desc"]] // Urutkan berdasarkan tanggal secara default
+            });
+            
+            // Tambahkan fungsi filter kustom DataTables
+            $.fn.dataTable.ext.search.push(
+                function(settings, data, dataIndex) {
+                    if (settings.nTable.id !== 'dataTable') return true;
+
+                    const selectedBlok = document.getElementById('filterBlok').value;
+                    const selectedLote = document.getElementById('filterLote').value;
+                    const blok = data[0]; // Kolom 'Blok'
+                    const lote = data[1]; // Kolom 'Lote'
+
+                    const blokMatch = selectedBlok === "" || blok === selectedBlok;
+                    const loteMatch = selectedLote === "" || lote === selectedLote;
+                    
+                    return blokMatch && loteMatch;
+                }
+            );
+        }
+
+        // Fungsi untuk memfilter data mentah dan memperbarui semua komponen
+        function filterDataAndUpdate() {
+            const selectedBlok = document.getElementById('filterBlok').value;
+            const selectedLote = document.getElementById('filterLote').value;
+            
+            const filteredData = rawData.filter(row => {
+                const blokMatch = selectedBlok === "" || row.Bloque === selectedBlok;
+                const loteMatch = selectedLote === "" || row.Lote === selectedLote;
+                return blokMatch && loteMatch;
+            });
+            
+            updateSummaryStats(filteredData);
+            updateCharts(filteredData);
+
+            // Terapkan filter ke DataTables dan gambar ulang
+            if (dataTable) {
+                // Memicu pencarian ulang DataTables, yang menggunakan fungsi custom filter
+                dataTable.draw(); 
+            }
+        }
+
+        // Fungsi untuk mengunduh data yang difilter saat ini sebagai CSV
+        function exportFilteredData() {
+            if (!dataTable) return;
+
+            // Dapatkan data dari DataTables setelah pemfilteran dan pencarian
+            // Data ini sudah dalam format array of arrays seperti di DataTables
+            const filteredTableData = dataTable.rows({ search: 'applied', order: 'applied', page: 'all' }).data().toArray();
+            
+            // Dapatkan header kolom
+            const headers = dataTable.settings().init().columns.map(col => col.title);
+
+            // Gabungkan header dan data
+            const csvData = [headers, ...filteredTableData];
+            
+            // Konversi ke format CSV menggunakan Papa Parse 
+            const csv = Papa.unparse(csvData);
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "data_sawit_export_filtered.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- CHART FUNCTIONS ---
+
+        let barChart, lineChart, pieChart;
+
+        function updateCharts(data) {
+            // 1. Agregasi Data Bulanan
+            const monthlyData = aggregateMonthlyData(data);
+            const labels = Object.keys(monthlyData).sort();
+
+            // Data untuk Grafik Batang (Produksi vs Biaya Total)
+            const produksiData = labels.map(m => monthlyData[m].totalProduksi);
+            const biayaData = labels.map(m => monthlyData[m].totalBiaya);
+            
+            // Data untuk Grafik Garis (Tren Pendapatan)
+            const pendapatanData = labels.map(m => monthlyData[m].totalPendapatan);
+
+            // Data untuk Diagram Lingkaran (Proporsi Biaya)
+            const totalDirect = data.reduce((sum, row) => sum + (row['Total directo (USD)'] || 0), 0);
+            const totalIndirect = data.reduce((sum, row) => sum + (row['Total indirecto (USD)'] || 0), 0);
+            const totalCosecha = data.reduce((sum, row) => sum + (row['Total cosecha (USD)'] || 0), 0);
+            const pieLabels = ['Biaya Langsung', 'Biaya Tidak Langsung', 'Biaya Panen'];
+            const pieChartData = [totalDirect, totalIndirect, totalCosecha];
+            
+            // Inisialisasi atau Perbarui Grafik
+            if (!barChart) {
+                barChart = createBarChart(labels, produksiData, biayaData);
+            } else {
+                updateChartData(barChart, labels, [produksiData, biayaData]);
+            }
+
+            if (!lineChart) {
+                lineChart = createLineChart(labels, pendapatanData);
+            } else {
+                updateChartData(lineChart, labels, [pendapatanData]);
+            }
+
+            if (!pieChart) {
+                pieChart = createPieChart(pieLabels, pieChartData);
+            } else {
+                updateChartData(pieChart, pieLabels, [pieChartData]);
+            }
+        }
+
+        function aggregateMonthlyData(data) {
+            const aggregated = {};
+            data.forEach(row => {
+                const date = row.Fecha ? new Date(row.Fecha) : null;
+                if (!date || isNaN(date)) return; // Lewati jika tanggal tidak valid
+
+                // Format Bulan Tahun (YYYY-MM)
+                const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                
+                if (!aggregated[monthYear]) {
+                    aggregated[monthYear] = {
+                        totalProduksi: 0,
+                        totalBiaya: 0,
+                        totalPendapatan: 0
+                    };
+                }
+                aggregated[monthYear].totalProduksi += (row['Producción (ton)'] || 0);
+                aggregated[monthYear].totalBiaya += (row['Costo total (USD)'] || 0);
+                aggregated[monthYear].totalPendapatan += (row['Ingresos (USD)'] || 0);
+            });
+            return aggregated;
+        }
+
+        function createBarChart(labels, produksiData, biayaData) {
+            const ctx = document.getElementById('barChart').getContext('2d');
+            return new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Produksi (ton)',
+                            data: produksiData,
+                            backgroundColor: CHART_COLORS.primary,
+                            yAxisID: 'y',
+                            order: 2 // Tampilkan di depan
+                        },
+                        {
+                            label: 'Biaya Total (USD)',
+                            data: biayaData,
+                            backgroundColor: CHART_COLORS.red,
+                            yAxisID: 'y1',
+                            order: 1 // Tampilkan di belakang
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.dataset.yAxisID === 'y1' ? `$${context.parsed.y.toFixed(2)}` : `${context.parsed.y.toFixed(2)} ton`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'Produksi (ton)' },
+                            beginAtZero: true
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Biaya (USD)' },
+                            grid: { drawOnChartArea: false },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function createLineChart(labels, pendapatanData) {
+            const ctx = document.getElementById('lineChart').getContext('2d');
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Pendapatan (USD)',
+                        data: pendapatanData,
+                        borderColor: CHART_COLORS.secondary,
+                        backgroundColor: 'rgba(56, 118, 29, 0.2)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += `$${context.parsed.y.toFixed(2)}`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function createPieChart(labels, data) {
+            const ctx = document.getElementById('pieChart').getContext('2d');
+            return new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            CHART_COLORS.secondary,
+                            CHART_COLORS.accent,
+                            CHART_COLORS.primary
+                        ],
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                                    return `${label}: $${value.toFixed(2)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fungsi bantu untuk memperbarui data grafik yang ada
+        function updateChartData(chart, labels, newDatasetsData) {
+            chart.data.labels = labels;
+            chart.data.datasets.forEach((dataset, index) => {
+                dataset.data = newDatasetsData[index];
+            });
+            chart.update();
+        }
+
+        // Jalankan fungsi saat DOM dimuat
+        $(document).ready(function() {
+            loadAndProcessData();
+        });
+    </script>
+
+</body>
+</html>
